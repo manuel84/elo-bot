@@ -8,33 +8,33 @@ class EloRatings
   def initialize
     @teams = {}
   end
-  
+
   def process (matches)
     matches.each do |match|
       t1 = team match['hostId']
       t2 = team match['guestId']
-      
+
       we = estimate(t1.rating, t2.rating)
 
       yield match, we
-      
-      calculate(t1, t2, match)      
+
+      calculate(t1, t2, match)
     end
   end
-  
+
   private
-  
+
   # see http://de.wikipedia.org/wiki/World_Football_Elo_Ratings
   def estimate (rating1, rating2)
     dr = rating1 - rating2 + 100
     we = 1.0 / (10 ** (-1*dr/400.0) + 1)
     we
   end
-  
+
   def diff (match)
     match['hostGoals'].to_i - match['guestGoals'].to_i
   end
-  
+
   def calculate (t1, t2, match)
     g = t1.versus(t2)
     if diff(match) > 0
@@ -45,7 +45,7 @@ class EloRatings
       g.draw
     end
   end
-  
+
   def team (id)
     @teams[id] ||= Elo::Player.new
   end
@@ -53,12 +53,12 @@ end
 
 class Importer
   def initialize
-    @http = Net::HTTP.new('botliga.de',80)
+    @http = Net::HTTP.new('botliga.de', 80)
   end
 
   def import
     matches = []
-    (2010..2012).each do |year| 
+    (2010..2014).each do |year|
       puts ">> /api/matches/#{year}"
       response = @http.get("/api/matches/#{year}")
       data = JSON.parse(response.body)
@@ -74,20 +74,21 @@ class Botliga
     #@uri = URI('http://localhost:3000/api/guess')
     @token = token
   end
-  
+
   def post(match_id, result)
-    Net::HTTP.post_form(@uri, :match_id => match_id, :result => result, :token => @token)
+    #Net::HTTP.post_form(@uri, :match_id => match_id, :result => result, :token => @token)
   end
 end
 
 importer = Importer.new
 matches = importer.import
+matches.sort! { |a, b| DateTime.parse(a["date"]) <=> DateTime.parse(b["date"]) }
 
 liga = Botliga.new(ARGV[0])
 
 r = EloRatings.new
 r.process(matches) do |match, we|
-  if DateTime.parse(match["date"]) > DateTime.now
+  if DateTime.parse(match["date"]) < DateTime.now
     if we < 0.35
       result = '1:3'
     elsif we < 0.4
@@ -105,7 +106,7 @@ r.process(matches) do |match, we|
     else
       result = '2:0'
     end
-    puts "#{result} - #{match['id']} - #{match['hostName']} vs. #{match['guestName']}"
-    pp liga.post(match['id'], result)
+    puts "#{result} - #{match['id']} - #{match['hostName']} vs. #{match['guestName']}, #{DateTime.parse(match['date']).strftime('%Y-%m-%d')}"
+    #pp liga.post(match['id'], result)
   end
 end
