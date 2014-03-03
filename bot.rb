@@ -3,6 +3,7 @@ require 'json'
 require 'date'
 require 'net/http'
 require 'pp'
+require 'active_support/time'
 
 class EloRatings
   def initialize
@@ -88,7 +89,7 @@ liga = Botliga.new(ARGV[0])
 
 r = EloRatings.new
 r.process(matches) do |match, we|
-  if DateTime.parse(match["date"]) < DateTime.now
+  if DateTime.parse(match["date"]) < DateTime.now + 10.days
     if we < 0.35
       result = '1:3'
     elsif we < 0.4
